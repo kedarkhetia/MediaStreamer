@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Streamer</title>
+</head>
+<body>
+<h2>Media Streamer</h2>
+<video id="videoPlayer" width="720" height="480" controls>
+    Your browser does not support HTML5 video.
+</video>
+
+<script>
+    // Extract ?videoId=<id> from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const videoId = urlParams.get('videoId');
+
+    if (videoId) {
+        const video = document.getElementById('videoPlayer');
+        // Your backend endpoint pattern
+        video.src = `/stream/video/${videoId}`;
+        video.load();
+    } else {
+        document.body.innerHTML += "<p style='color:red;'>Error: Missing videoId in URL.</p>";
+    }
+</script>
+</body>
+</html>
