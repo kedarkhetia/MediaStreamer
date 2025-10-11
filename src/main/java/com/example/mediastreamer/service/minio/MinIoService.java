@@ -1,11 +1,14 @@
 package com.example.mediastreamer.service.minio;
 
+import com.example.mediastreamer.model.PreSignedUploadUrlData;
 import com.example.mediastreamer.model.VideoMetadata;
 import com.google.gson.Gson;
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,6 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static com.example.mediastreamer.utils.Constants.JSON_CONTENT_TYPE;
 import static com.example.mediastreamer.utils.Constants.JSON_EXTENSION;
@@ -29,6 +35,8 @@ public class MinIoService {
 
     private MinioClient minioClient;
     private Gson gson;
+
+    private static final int PRE_SIGNED_URL_TIMEOUT = 6; // hours
 
     public MinIoService(MinioClient minioClient) {
         this.gson = new Gson();
@@ -98,6 +106,31 @@ public class MinIoService {
             return stream.readAllBytes();
         } catch (Exception e) {
             System.out.println("Video metadata for video with id: " + videoId + " not found!");
+            return null;
+        }
+    }
+
+    public PreSignedUploadUrlData getPreSignedVideoUploadUrl(String videoId) {
+        try {
+            Map<String, String> reqParams = new HashMap<String, String>();
+            reqParams.put("response-content-type", VIDEO_CONTENT_TYPE);
+
+            String url = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs
+                    .builder()
+                    .method(Method.PUT)
+                    .bucket(videoBucket)
+                    .object(videoId)
+                    .expiry(PRE_SIGNED_URL_TIMEOUT, TimeUnit.HOURS)
+                    .extraQueryParams(reqParams)
+                    .build());
+            return PreSignedUploadUrlData.builder()
+                    .preSignedUrl(url)
+                    .contentType(VIDEO_CONTENT_TYPE)
+                    .expiresIn(PRE_SIGNED_URL_TIMEOUT)
+                    .videoId(videoId)
+                    .build();
+        } catch (Exception e) {
+            System.out.println("Could not generate preSigned url for video upload");
             return null;
         }
     }
