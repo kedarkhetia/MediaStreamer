@@ -33,8 +33,8 @@ public class MinIoService {
     @Value("${minio.video.metadata.bucket}")
     private String videoMetadataBucket;
 
-    private MinioClient minioClient;
-    private Gson gson;
+    private final MinioClient minioClient;
+    private final Gson gson;
 
     private static final int PRE_SIGNED_URL_TIMEOUT = 6; // hours
 
@@ -62,7 +62,7 @@ public class MinIoService {
         }
     }
 
-    public boolean uploadFileMetadata(VideoMetadata metadata) {
+    public boolean uploadVideoMetadata(VideoMetadata metadata) {
         try {
             if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(videoMetadataBucket).build())) {
                 System.out.println("Bucket " + videoMetadataBucket + " does not exist!");

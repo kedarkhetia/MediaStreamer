@@ -25,7 +25,7 @@ public class VideoUploadService {
     public ResponseEntity<String> uploadNormalVideo(@RequestPart("file") MultipartFile file,
                                             @RequestPart("metadata") VideoMetadata metadata) {
         if (minIoService.uploadVideo(file, metadata.getVideoId())) {
-            if (minIoService.uploadFileMetadata(metadata))
+            if (minIoService.uploadVideoMetadata(metadata))
                 return ResponseEntity.ok("File upload successful");
         }
         return ResponseEntity.internalServerError().body("File upload failed!");
@@ -33,7 +33,7 @@ public class VideoUploadService {
 
     @PostMapping("/getPreSignedUploadUrl")
     public ResponseEntity<PreSignedUploadUrlData> getPreSignedUploadUrl(@RequestBody VideoMetadata metadata) {
-        if (!minIoService.uploadFileMetadata(metadata)) {
+        if (!minIoService.uploadVideoMetadata(metadata)) {
             return ResponseEntity.internalServerError().build();
         }
         return ResponseEntity.status(HttpStatus.OK)

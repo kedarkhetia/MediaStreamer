@@ -9,6 +9,7 @@ import java.util.List;
 @Builder
 @Data
 public class VideoMetadata {
+    private boolean isUploaded = false;
     @NonNull
     private String videoId;
     @NonNull

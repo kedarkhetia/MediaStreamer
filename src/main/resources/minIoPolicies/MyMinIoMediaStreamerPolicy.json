@@ -3,7 +3,7 @@
   "Statement" : [
     {
       "Effect" : "Allow",
-      "Action" : ["s3:GetObject"],
+      "Action" : ["s3:GetObject", "s3:PutObject", "s3:ListenBucketNotification"],
       "Resource" : ["arn:aws:s3:::videos/*", "arn:aws:s3:::video-metadata/*"]
     },
     {
