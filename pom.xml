@@ -75,6 +75,13 @@
 			<version>1.18.42</version>
 		</dependency>
 
+		<!-- JCodec - Java media processing library -->
+		<dependency>
+			<groupId>org.jcodec</groupId>
+			<artifactId>jcodec</artifactId>
+			<version>0.2.5</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

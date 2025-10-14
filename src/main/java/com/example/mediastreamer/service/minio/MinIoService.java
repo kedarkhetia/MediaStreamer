@@ -15,6 +15,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -106,6 +108,19 @@ public class MinIoService {
             return stream.readAllBytes();
         } catch (Exception e) {
             System.out.println("Video metadata for video with id: " + videoId + " not found!");
+            return null;
+        }
+    }
+
+    public InputStream getInputStreamForVideo(String videoId, long offset) {
+        try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(videoBucket)
+                .object(videoId)
+                .offset(offset)
+                .build())) {
+            return stream;
+        } catch (Exception e) {
+            System.out.println("Failed to get InputStream for video with id: " + videoId);
             return null;
         }
     }
