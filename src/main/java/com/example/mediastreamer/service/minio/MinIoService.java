@@ -9,22 +9,22 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.http.Method;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static com.example.mediastreamer.utils.Constants.BUFFER;
 import static com.example.mediastreamer.utils.Constants.JSON_CONTENT_TYPE;
 import static com.example.mediastreamer.utils.Constants.JSON_EXTENSION;
-import static com.example.mediastreamer.utils.Constants.VIDEO_CONTENT_TYPE;
+import static com.example.mediastreamer.utils.Constants.VIDEO_EXTENSION_KEY;
 
 @Service
 public class MinIoService {
@@ -35,7 +35,12 @@ public class MinIoService {
     @Value("${minio.video.metadata.bucket}")
     private String videoMetadataBucket;
 
+    @Value("${minio.video.chunks.bucket}")
+    private String videoChunksBucket;
+
+    @Autowired
     private final MinioClient minioClient;
+
     private final Gson gson;
 
     private static final int PRE_SIGNED_URL_TIMEOUT = 6; // hours
@@ -53,7 +58,6 @@ public class MinIoService {
             }
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(videoBucket)
-                    .contentType(VIDEO_CONTENT_TYPE)
                     .object(videoId)
                     .stream(inputStream, file.getSize(), -1)
                     .build());
@@ -85,6 +89,20 @@ public class MinIoService {
         }
     }
 
+    public void uploadVideoChunkUsingThreadStream(InputStream stream, String chunkId) {
+        try {
+            minioClient.putObject(PutObjectArgs
+                    .builder()
+                    .bucket(videoChunksBucket)
+                    .object(chunkId)
+                    .stream(stream, -1, BUFFER) // unknown chunk size
+                    .build());
+        } catch (Exception e) {
+            System.out.println("Something went wrong while uploading chunk with chunkId: " + chunkId
+                    + " to bucket with bucketId: " + videoChunksBucket + ". Error: " + e.getMessage());
+        }
+    }
+
     public VideoMetadata downloadVideoMetadata(String videoId) {
         try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
                 .bucket(videoMetadataBucket)
@@ -112,24 +130,32 @@ public class MinIoService {
         }
     }
 
-    public InputStream getInputStreamForVideo(String videoId, long offset) {
+    public byte[] downloadVideoChunk(String chunkId) {
         try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
-                .bucket(videoBucket)
-                .object(videoId)
-                .offset(offset)
-                .build())) {
-            return stream;
+                .bucket(videoChunksBucket).object(chunkId).build())) {
+            return stream.readAllBytes();
+        } catch (Exception e) {
+            System.out.println("chunk with id: " + chunkId + " not found!");
+            return null;
+        }
+    }
+
+    public InputStream getInputStreamForVideo(String videoId) {
+        try {
+            return minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(videoBucket)
+                    .object(videoId)
+                    .build());
         } catch (Exception e) {
             System.out.println("Failed to get InputStream for video with id: " + videoId);
             return null;
         }
     }
 
-    public PreSignedUploadUrlData getPreSignedVideoUploadUrl(String videoId) {
+    public PreSignedUploadUrlData getPreSignedVideoUploadUrl(String videoId, String extension) {
         try {
-            Map<String, String> reqParams = new HashMap<String, String>();
-            reqParams.put("response-content-type", VIDEO_CONTENT_TYPE);
-
+            Map<String, String> reqParams = new HashMap<>();
+            reqParams.put(VIDEO_EXTENSION_KEY, extension);
             String url = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs
                     .builder()
                     .method(Method.PUT)
@@ -140,7 +166,6 @@ public class MinIoService {
                     .build());
             return PreSignedUploadUrlData.builder()
                     .preSignedUrl(url)
-                    .contentType(VIDEO_CONTENT_TYPE)
                     .expiresIn(PRE_SIGNED_URL_TIMEOUT)
                     .videoId(videoId)
                     .build();

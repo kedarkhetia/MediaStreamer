@@ -37,7 +37,7 @@ public class VideoUploadService {
             return ResponseEntity.internalServerError().build();
         }
         return ResponseEntity.status(HttpStatus.OK)
-                .body(minIoService.getPreSignedVideoUploadUrl(metadata.getVideoId()));
+                .body(minIoService.getPreSignedVideoUploadUrl(metadata.getVideoId(), metadata.getExtension()));
     }
 
 }

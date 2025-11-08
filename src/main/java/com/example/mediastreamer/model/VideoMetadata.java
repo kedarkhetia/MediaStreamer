@@ -15,9 +15,12 @@ public class VideoMetadata {
     @NonNull
     private String fileName;
     @NonNull
+    private String extension;
+    @NonNull
     private String title;
-    private long duration;
+    private double duration;
     @NonNull
     private List<String> tags;
     private long size;
+    private List<String> chunks;
 }

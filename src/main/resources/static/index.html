@@ -12,18 +12,68 @@
 </video>
 
 <script>
-    // Extract ?videoId=<id> from the URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const videoId = urlParams.get('videoId');
+    (async () => {
 
-    if (videoId) {
+        // Finalized constants based on previous debugging
+        const VIDEO_MIME_CODEC = 'video/mp4; codecs="avc1.640028"';
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoId = urlParams.get('videoId');
+
+        async function fetchVideoMetadata(videoId) {
+            const metadataUrl = `/video/${videoId}/metadata`;
+            const metadataRes = await fetch(metadataUrl);
+            const metadata = await metadataRes.json();
+            return metadata;
+        }
+
         const video = document.getElementById('videoPlayer');
-        // Your backend endpoint pattern
-        video.src = `/stream/video/${videoId}`;
-        video.load();
-    } else {
-        document.body.innerHTML += "<p style='color:red;'>Error: Missing videoId in URL.</p>";
-    }
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        async function fetchAndAttachChunk(chunkId) {
+            const chunkUrl = `/video/chunk/${chunkId}`;
+            const res = await fetch(chunkUrl);
+            if (!res.ok) {
+                console.error("Error fetching chunk:", chunkId);
+                return;
+            }
+            const data = await res.arrayBuffer();
+            console.log('Appended chunk:', chunkId);
+            return data;
+        }
+
+        async function sourceOpenListener(videoId) {
+            const index = 0;
+            console.log("MediaSource opened:", mediaSource.readyState);
+            const metadata = await fetchVideoMetadata(videoId);
+            const chunkIds = metadata.chunks;
+            mediaSource.duration = metadata.duration;
+            if (!MediaSource.isTypeSupported(VIDEO_MIME_CODEC)) {
+                console.error("Unsupported MIME type:", VIDEO_MIME_CODEC);
+                return;
+            }
+            const sourceBuffer = mediaSource.addSourceBuffer(VIDEO_MIME_CODEC);
+            sourceBuffer.mode = 'sequence';
+            playNextChunk(chunkIds, 0, sourceBuffer);
+
+        }
+
+        async function playNextChunk(chunkIds, index, sourceBuffer) {
+            sourceBuffer.appendBuffer(await fetchAndAttachChunk(chunkIds[index]));
+            index++;
+            if (index < chunkIds.length) {
+                console.log('Adding chunk ' + chunkIds[index]);
+                sourceBuffer.addEventListener('updateend', async () => {
+                    await playNextChunk(chunkIds, index, sourceBuffer);
+                }, {once: true});
+            } else {
+               sourceBuffer.addEventListener('updateend', async () => {
+                    mediaSource.endOfStream();
+                }, {once: true});
+            }
+        }
+        mediaSource.addEventListener('sourceopen', sourceOpenListener(videoId));
+    })();
 </script>
 </body>
 </html>

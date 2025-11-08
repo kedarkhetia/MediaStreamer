@@ -1,6 +1,6 @@
 package com.example.mediastreamer.service.minio;
 
-import com.example.mediastreamer.model.VideoMetadata;
+import com.example.mediastreamer.service.ffmpeg.FrameProcessor;
 import io.minio.CloseableIterator;
 import io.minio.ListenBucketNotificationArgs;
 import io.minio.MinioClient;
@@ -11,22 +11,22 @@ import io.minio.messages.NotificationRecords;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@Configuration
+@Service
 public class MinIoBucketListener {
-
-    @Autowired
-    private MinIoService minIoService;
 
     @Autowired
     private MinioClient minioClient;
 
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    @Autowired
+    private FrameProcessor frameProcessor;
+
+    private final ExecutorService executorService = Executors.newFixedThreadPool(2);
 
     @Value("${minio.video.bucket}")
     private String videoBucket;
@@ -58,14 +58,7 @@ public class MinIoBucketListener {
                 for (Event event : events) {
                     if (event.eventType().equals(EventType.OBJECT_CREATED_PUT)) {
                         String videoId = event.objectName();
-                        VideoMetadata videoMetadata = minIoService.downloadVideoMetadata(videoId);
-                        if (videoMetadata == null) {
-                            System.out.println("No video metadata found for uploaded video!");
-                            return;
-                        }
-                        videoMetadata.setUploaded(true);
-                        videoMetadata.setSize(event.objectSize());
-                        minIoService.uploadVideoMetadata(videoMetadata);
+                        frameProcessor.chunkVideos(videoId);
                     }
                 }
             }

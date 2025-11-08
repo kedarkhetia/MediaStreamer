@@ -77,9 +77,9 @@
 
 		<!-- JCodec - Java media processing library -->
 		<dependency>
-			<groupId>org.jcodec</groupId>
-			<artifactId>jcodec</artifactId>
-			<version>0.2.5</version>
+			<groupId>org.bytedeco</groupId>
+			<artifactId>javacv-platform</artifactId>
+			<version>1.5.10</version>
 		</dependency>
 
 	</dependencies>

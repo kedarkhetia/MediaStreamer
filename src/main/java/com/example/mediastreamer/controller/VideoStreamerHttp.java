@@ -12,17 +12,22 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import static com.example.mediastreamer.utils.Constants.VIDEO_STREAM_BUFFER;
 
 @RestController
-@RequestMapping(path = "/stream")
+@RequestMapping
 public class VideoStreamerHttp {
 
     private static String BYTES = "bytes=";
-    private static int BUFFER = 100000; // 100KB
 
     @Autowired
-    MinIoService minIoService;
+    private MinIoService minIoService;
 
     @GetMapping("/video/{videoId}")
     public ResponseEntity<byte[]> streamVideo(@PathVariable("videoId") String videoId,
@@ -38,7 +43,7 @@ public class VideoStreamerHttp {
             String message = "failed to download video metadata!";
             return ResponseEntity.internalServerError().body(message.getBytes(StandardCharsets.UTF_8));
         }
-        long length =  Math.min(BUFFER, videoMetadata.getSize() - rangeStart);
+        long length =  Math.min(VIDEO_STREAM_BUFFER, videoMetadata.getSize() - rangeStart);
         byte[] videoBytes = minIoService.downloadVideo(videoId, rangeStart, length);
         return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
                 .header(HttpHeaders.CONTENT_TYPE, "video/mp4")
@@ -47,5 +52,31 @@ public class VideoStreamerHttp {
                 // content-range are inclusive i.e. content-length 100 = content range 0 - 99
                 .header(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + (rangeStart + length - 1) + "/" + videoMetadata.getSize())
                 .body(videoBytes);
+    }
+
+    @GetMapping("/video/chunk/{chunkId}")
+    public ResponseEntity<byte[]> streamVideoChunks(@PathVariable("chunkId") String chunkId) {
+        byte[] videoBytes = minIoService.downloadVideoChunk(chunkId);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .header(HttpHeaders.CONTENT_TYPE,"video/mp4")
+                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoBytes.length))
+                .body(videoBytes);
+    }
+
+    @GetMapping("/video/local/chunk/{chunkId}")
+    public ResponseEntity<byte[]> streamLocalVideoChunks(@PathVariable("chunkId") String chunkId) throws IOException {
+        Path path = Paths.get("/Users/kedarkhetia/IdeaProjects/MediaStreamer/src/main/resources/videos/" + chunkId);
+        byte[] videoBytes = Files.readAllBytes(path);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .header(HttpHeaders.CONTENT_TYPE,"video/mp4")
+                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoBytes.length))
+                .body(videoBytes);
+    }
+
+    @GetMapping("video/{videoId}/metadata")
+    public VideoMetadata getVideoMetadata(@PathVariable("videoId") String videoId) {
+        return minIoService.downloadVideoMetadata(videoId);
     }
 }
