@@ -21,6 +21,8 @@ import java.io.PipedOutputStream;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.example.mediastreamer.utils.Constants.CHUNK;
 import static com.example.mediastreamer.utils.Constants.CHUNK_SECONDS;
@@ -35,7 +37,7 @@ public class FrameProcessor {
     @Autowired
     private MinIoService minIoService;
 
-    private static RateLimiter rateLimiter = RateLimiter.create(300);
+    private static ExecutorService executorService = Executors.newCachedThreadPool();
 
     private final Map<Integer, Integer> resolutionMap = ImmutableMap.of(
       2160, 1440,
@@ -56,8 +58,11 @@ public class FrameProcessor {
             long chunkMicroSec = (long) (CHUNK_SECONDS * MICROSECOND_TO_SECOND_MULTIPLIER);
             while (curTime < totalTime) {
                 long chunkSize = Math.min(chunkMicroSec, totalTime - curTime);
-                copyFramesWithMultipleResolutions(videoMetadata, curTime, index,
-                        chunkSize, chunks, grabber.getImageWidth(), grabber.getImageHeight());
+                long finalCurTime = curTime;
+                int finalIndex = index;
+                Thread copyFramesWithMultipleResolutions = new Thread(() -> copyFramesWithMultipleResolutions(videoMetadata,
+                        finalCurTime, finalIndex, chunkSize, chunks, grabber.getImageWidth(), grabber.getImageHeight()));
+                executorService.submit(copyFramesWithMultipleResolutions);
                 curTime += chunkSize;
                 index++;
             }
@@ -82,7 +87,7 @@ public class FrameProcessor {
         }
     }
 
-    public synchronized void copyFrames(VideoMetadata videoMetadata,
+    public void copyFrames(VideoMetadata videoMetadata,
                           long offset, long length, int index, Set<String> chunks, int[] resolution) {
         try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(minIoService.getInputStreamForVideo(videoMetadata.getVideoId()))) {
             grabber.start();
@@ -94,7 +99,6 @@ public class FrameProcessor {
             OpenCVFrameConverter.ToMat converter = new OpenCVFrameConverter.ToMat();
             Frame frame;
             while ((frame = grabber.grabFrame()) != null && grabber.getTimestamp() < offset + length) {
-                rateLimiter.acquire();
                 // Resize each frame for lower resolution.
                 if (resolution[1] != grabber.getImageHeight()) {
                     Mat mat = converter.convert(frame);
@@ -105,7 +109,7 @@ public class FrameProcessor {
                         recorder.record(resizedFrame);
                         resized.release();
                     }
-                } else {
+                } else if (resolution[1] == grabber.getImageHeight()) {
                     recorder.record(frame);
                 }
             }
@@ -114,7 +118,6 @@ public class FrameProcessor {
             recorder.stop();
             recorder.release();
             pout.close();
-            pin.close();
         } catch (Exception e) {
             System.out.println("Exception occurred while copying Frames! chunk number: " + index + " resolution: " + resolution[1]);
             e.printStackTrace();
@@ -163,9 +166,11 @@ public class FrameProcessor {
 
     // This is just to simulate lower quality. There are better ways to downscale
     // video for better network speed.
-    public int[] reduceResolution(int imageWidth, int imageHeight) {
+    public synchronized int[] reduceResolution(int imageWidth, int imageHeight) {
         double aspectRatio = (double) imageWidth / imageHeight;
         int height = resolutionMap.getOrDefault(imageHeight, -1);
+        if (height == -1)
+            return new int[]{-1, -1};
         return new int[]{(int) (height * aspectRatio), height};
     }
 }

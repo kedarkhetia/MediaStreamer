@@ -3,7 +3,14 @@
   "Statement" : [
     {
       "Effect" : "Allow",
-      "Action" : ["s3:GetObject", "s3:PutObject", "s3:ListenBucketNotification"],
+      "Action" : [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:ListenBucketNotification",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts",
+        "s3:ListBucketMultipartUploads"
+      ],
       "Resource" : ["arn:aws:s3:::videos/*", "arn:aws:s3:::video-metadata/*", "arn:aws:s3:::video-chunks/*"]
     },
     {
