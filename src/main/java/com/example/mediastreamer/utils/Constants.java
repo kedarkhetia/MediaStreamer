@@ -9,6 +9,7 @@ public class Constants {
     public static final int BUFFER = 5242880; // 5MiB
     public static final double MICROSECOND_TO_SECOND_MULTIPLIER = 1000000;
     public static final String CHUNK = "_chunk_";
+    public static final String RESOLUTION = "_res_";
     public static final String DOT = ".";
     public static final int VIDEO_STREAM_BUFFER = 102400; // 1MB
     public static final String VIDEO_EXTENSION_KEY = "VIDEO_FORMAT";

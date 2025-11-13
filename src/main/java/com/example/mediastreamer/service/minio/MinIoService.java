@@ -50,7 +50,7 @@ public class MinIoService {
         this.minioClient = minioClient;
     }
 
-    public synchronized boolean uploadVideo(MultipartFile file, String videoId) {
+    public boolean uploadVideo(MultipartFile file, String videoId) {
         try (InputStream inputStream = file.getInputStream()) {
             if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(videoBucket).build())) {
                 System.out.println("Bucket " + videoBucket + " does not exist!");
@@ -68,7 +68,7 @@ public class MinIoService {
         }
     }
 
-    public synchronized boolean uploadVideoMetadata(VideoMetadata metadata) {
+    public boolean uploadVideoMetadata(VideoMetadata metadata) {
         try {
             if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(videoMetadataBucket).build())) {
                 System.out.println("Bucket " + videoMetadataBucket + " does not exist!");
@@ -89,7 +89,7 @@ public class MinIoService {
         }
     }
 
-    public synchronized void uploadVideoChunkUsingThreadStream(InputStream stream, String chunkId) {
+    public void uploadVideoChunkUsingThreadStream(InputStream stream, String chunkId) {
         try {
             minioClient.putObject(PutObjectArgs
                     .builder()
@@ -99,11 +99,11 @@ public class MinIoService {
                     .build());
         } catch (Exception e) {
             System.out.println("Something went wrong while uploading chunk with chunkId: " + chunkId
-                    + " to bucket with bucketId: " + videoChunksBucket + ". Error: " + e.getMessage());
+                    + " to bucket with bucketId: " + videoChunksBucket + ". Error: " + e);
         }
     }
 
-    public synchronized VideoMetadata downloadVideoMetadata(String videoId) {
+    public VideoMetadata downloadVideoMetadata(String videoId) {
         try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
                 .bucket(videoMetadataBucket)
                 .object(videoId + JSON_EXTENSION)
@@ -116,7 +116,7 @@ public class MinIoService {
         }
     }
 
-    public synchronized byte[] downloadVideo(String videoId, long offset, long length) {
+    public byte[] downloadVideo(String videoId, long offset, long length) {
         try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
                 .bucket(videoBucket)
                 .object(videoId)
@@ -130,7 +130,7 @@ public class MinIoService {
         }
     }
 
-    public synchronized byte[] downloadVideoChunk(String chunkId) {
+    public byte[] downloadVideoChunk(String chunkId) {
         try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
                 .bucket(videoChunksBucket).object(chunkId).build())) {
             return stream.readAllBytes();
@@ -140,7 +140,7 @@ public class MinIoService {
         }
     }
 
-    public synchronized InputStream getInputStreamForVideo(String videoId) {
+    public InputStream getInputStreamForVideo(String videoId) {
         try {
             return minioClient.getObject(GetObjectArgs.builder()
                     .bucket(videoBucket)
@@ -152,7 +152,7 @@ public class MinIoService {
         }
     }
 
-    public synchronized PreSignedUploadUrlData getPreSignedVideoUploadUrl(String videoId, String extension) {
+    public PreSignedUploadUrlData getPreSignedVideoUploadUrl(String videoId, String extension) {
         try {
             Map<String, String> reqParams = new HashMap<>();
             reqParams.put(VIDEO_EXTENSION_KEY, extension);

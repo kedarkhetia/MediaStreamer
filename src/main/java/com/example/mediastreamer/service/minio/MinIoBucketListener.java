@@ -58,7 +58,7 @@ public class MinIoBucketListener {
                 for (Event event : events) {
                     if (event.eventType().equals(EventType.OBJECT_CREATED_PUT)) {
                         String videoId = event.objectName();
-                        frameProcessor.chunkVideos(videoId);
+                        executorService.submit(() -> frameProcessor.chunkVideos(videoId));
                     }
                 }
             }
