@@ -15,6 +15,9 @@
     (async () => {
 
         // Finalized constants based on previous debugging
+        const RES = "_res_";
+        const CHUNK = "_chunk_";
+        const EXTENSION = ".mp4";
         const VIDEO_MIME_CODEC = 'video/mp4; codecs="avc1.640028"';
         const urlParams = new URLSearchParams(window.location.search);
         const videoId = urlParams.get('videoId');
@@ -46,7 +49,8 @@
             const index = 0;
             console.log("MediaSource opened:", mediaSource.readyState);
             const metadata = await fetchVideoMetadata(videoId);
-            const chunkIds = metadata.chunks;
+            const totalChunks = metadata.totalChunks;
+            const resolutions = metadata.resolutions;
             mediaSource.duration = metadata.duration;
             if (!MediaSource.isTypeSupported(VIDEO_MIME_CODEC)) {
                 console.error("Unsupported MIME type:", VIDEO_MIME_CODEC);
@@ -54,17 +58,17 @@
             }
             const sourceBuffer = mediaSource.addSourceBuffer(VIDEO_MIME_CODEC);
             sourceBuffer.mode = 'sequence';
-            playNextChunk(chunkIds, 0, sourceBuffer);
+            playNextChunk(sourceBuffer, videoId, index, totalChunks, resolutions);
 
         }
 
-        async function playNextChunk(chunkIds, index, sourceBuffer) {
-            sourceBuffer.appendBuffer(await fetchAndAttachChunk(chunkIds[index]));
+        async function playNextChunk(sourceBuffer, videoId, index, totalChunks, resolutions) {
+            sourceBuffer.appendBuffer(await fetchAndAttachChunk(videoId + RES + resolutions["HIGH"] + CHUNK + index + EXTENSION));
             index++;
-            if (index < chunkIds.length) {
-                console.log('Adding chunk ' + chunkIds[index]);
+            if (index < totalChunks) {
+                console.log('Adding chunk ' + videoId + RES + resolutions["HIGH"] + CHUNK + index + EXTENSION);
                 sourceBuffer.addEventListener('updateend', async () => {
-                    await playNextChunk(chunkIds, index, sourceBuffer);
+                    await playNextChunk(sourceBuffer, videoId, index, totalChunks, resolutions);
                 }, {once: true});
             } else {
                sourceBuffer.addEventListener('updateend', async () => {

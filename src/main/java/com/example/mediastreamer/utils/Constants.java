@@ -16,4 +16,6 @@ public class Constants {
     public static final String MOV_FLAGS = "movflags";
     public static final String FRAGMENTED_KEY_FRAMES = "frag_keyframe+empty_moov+default_base_moof";
     // public static final String FRAGMENTED_KEY_FRAMES = "empty_moov+default_base_moof";
+    public static final String HIGH_RESOLUTION = "HIGH";
+    public static final String LOW_RESOLUTION = "LOW";
 }

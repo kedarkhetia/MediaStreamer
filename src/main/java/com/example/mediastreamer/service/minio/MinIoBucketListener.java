@@ -26,7 +26,7 @@ public class MinIoBucketListener {
     @Autowired
     private FrameProcessor frameProcessor;
 
-    private final ExecutorService executorService = Executors.newFixedThreadPool(2);
+    private final ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     @Value("${minio.video.bucket}")
     private String videoBucket;

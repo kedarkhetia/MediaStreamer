@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NonNull;
 
 import java.util.List;
+import java.util.Map;
 
 @Builder
 @Data
@@ -21,6 +22,8 @@ public class VideoMetadata {
     private double duration;
     @NonNull
     private List<String> tags;
+    private Map<String, Integer> resolutions;
+    private int totalChunks;
     private long size;
     private List<String> chunks;
 }

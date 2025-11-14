@@ -3,7 +3,6 @@ package com.example.mediastreamer.service.ffmpeg;
 import com.example.mediastreamer.model.VideoMetadata;
 import com.example.mediastreamer.service.minio.MinIoService;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.RateLimiter;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.Frame;
@@ -18,56 +17,69 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static com.example.mediastreamer.utils.Constants.CHUNK;
 import static com.example.mediastreamer.utils.Constants.CHUNK_SECONDS;
 import static com.example.mediastreamer.utils.Constants.DOT;
 import static com.example.mediastreamer.utils.Constants.FRAGMENTED_KEY_FRAMES;
+import static com.example.mediastreamer.utils.Constants.HIGH_RESOLUTION;
+import static com.example.mediastreamer.utils.Constants.LOW_RESOLUTION;
 import static com.example.mediastreamer.utils.Constants.MICROSECOND_TO_SECOND_MULTIPLIER;
 import static com.example.mediastreamer.utils.Constants.MOV_FLAGS;
 import static com.example.mediastreamer.utils.Constants.RESOLUTION;
+import static com.example.mediastreamer.utils.Constants.THREAD_TIMEOUT;
 
 @Service
 public class FrameProcessor {
     @Autowired
     private MinIoService minIoService;
 
-    private static ExecutorService executorService = Executors.newCachedThreadPool();
-
     private final Map<Integer, Integer> resolutionMap = ImmutableMap.of(
-      2160, 1440,
-      1440, 1080,
-      1080, 720,
+      2160, 1080,
+      1440, 720,
+      1080, 480,
       720,480
     );
 
     public void chunkVideos(String videoId) {
         VideoMetadata videoMetadata = minIoService.downloadVideoMetadata(videoId);
+        ExecutorService executorService = Executors.newCachedThreadPool();
         try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(minIoService.getInputStreamForVideo(videoId))) {
             TreeSet<String> chunks = new TreeSet<>();
             grabber.start();
+            List<Future<?>> futures = new LinkedList<>();
             videoMetadata.setDuration(grabber.getLengthInTime() / MICROSECOND_TO_SECOND_MULTIPLIER);
             long totalTime = grabber.getLengthInTime();
             long curTime = 0;
-            int index = 0;
+            int count = 0;
             long chunkMicroSec = (long) (CHUNK_SECONDS * MICROSECOND_TO_SECOND_MULTIPLIER);
             while (curTime < totalTime) {
                 long chunkSize = Math.min(chunkMicroSec, totalTime - curTime);
                 long finalCurTime = curTime;
-                int finalIndex = index;
+                int finalIndex = count;
                 Thread copyFramesWithMultipleResolutions = new Thread(() -> copyFramesWithMultipleResolutions(videoMetadata,
                         finalCurTime, finalIndex, chunkSize, chunks, grabber.getImageWidth(), grabber.getImageHeight()));
-                executorService.submit(copyFramesWithMultipleResolutions);
+                futures.add(executorService.submit(copyFramesWithMultipleResolutions));
                 curTime += chunkSize;
-                index++;
+                count++;
             }
             grabber.stop();
             grabber.release();
+            executorService.shutdown();
+            while (!futures.stream().allMatch(Future::isDone)) {
+                if (executorService.awaitTermination(THREAD_TIMEOUT, TimeUnit.MILLISECONDS))
+                    break;
+            }
+            videoMetadata.setTotalChunks(count);
             videoMetadata.setChunks(chunks.stream().toList());
             minIoService.uploadVideoMetadata(videoMetadata);
         } catch (Exception e) {
@@ -85,6 +97,10 @@ public class FrameProcessor {
             copyFrames(videoMetadata, finalCurTime,
                     chunkSize, finalIndex, chunks, reducedResolution);
         }
+        videoMetadata.setResolutions(Map.of(
+                HIGH_RESOLUTION, imageHeight,
+                LOW_RESOLUTION, reducedResolution[1]
+        ));
     }
 
     public void copyFrames(VideoMetadata videoMetadata,
