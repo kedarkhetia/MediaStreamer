@@ -1,5 +1,6 @@
 package com.example.mediastreamer.service.minio;
 
+import com.example.mediastreamer.model.PreSignedDownloadUrlData;
 import com.example.mediastreamer.model.PreSignedUploadUrlData;
 import com.example.mediastreamer.model.VideoMetadata;
 import com.google.gson.Gson;
@@ -8,6 +9,12 @@ import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.errors.ErrorResponseException;
+import io.minio.errors.InsufficientDataException;
+import io.minio.errors.InternalException;
+import io.minio.errors.InvalidResponseException;
+import io.minio.errors.ServerException;
+import io.minio.errors.XmlParserException;
 import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,8 +22,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -149,6 +159,25 @@ public class MinIoService {
                     .build());
         } catch (Exception e) {
             System.out.println("Failed to get InputStream for video with id: " + videoId);
+            return null;
+        }
+    }
+
+    public synchronized PreSignedDownloadUrlData getPreSignedVideoDownloadUrl(String chunkId) {
+        try {
+            String url = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs
+                    .builder()
+                    .method(Method.GET)
+                    .bucket(videoChunksBucket)
+                    .object(chunkId)
+                    .expiry(PRE_SIGNED_URL_TIMEOUT, TimeUnit.HOURS)
+                    .build());
+            return PreSignedDownloadUrlData.builder()
+                    .chunkId(chunkId)
+                    .preSignedUrl(url)
+                    .build();
+        } catch (Exception e) {
+            System.out.println("Could not generate preSigned url for video download");
             return null;
         }
     }

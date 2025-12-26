@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Streamer</title>
+</head>
+<body>
+<h2>Media Streamer</h2>
+<video id="videoPlayer" width="720" height="480" controls>
+    Your browser does not support HTML5 video.
+</video>
+
+<script>
+    (async () => {
+
+        // Finalized constants based on previous debugging
+        const RES = "_res_";
+        const CHUNK = "_chunk_";
+        const EXTENSION = ".mp4";
+        const VIDEO_MIME_CODEC = 'video/mp4; codecs="avc1.640028"';
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoId = urlParams.get('videoId');
+        let index = 0;
+        let timeupdateHandler = null;
+
+        // This is important to avoid race condition when network is slow.
+        let lockSourceBufferForAppend = false;
+
+        async function fetchVideoMetadata(videoId) {
+            const metadataUrl = `/video/${videoId}/metadata`;
+            const metadataRes = await fetch(metadataUrl);
+            const metadata = await metadataRes.json();
+            return metadata;
+        }
+
+        const video = document.getElementById('videoPlayer');
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        async function fetchAndAttachChunk(chunkId) {
+            const preSignedChunkUrl = `/video/getPresignedUrl/chunk/${chunkId}`;
+            const preSignedDownloadUrlResponse = await fetch(preSignedChunkUrl);
+            if (!preSignedDownloadUrlResponse.ok) {
+                console.error("Error fetching chunk:", chunkId);
+                return;
+            }
+            const preSignedDownloadUrlData = await preSignedDownloadUrlResponse.json();
+            console.log('PreSignedDownloadUrlData:', preSignedDownloadUrlData);
+            const res = await fetch(preSignedDownloadUrlData.preSignedUrl);
+            const data = await res.arrayBuffer();
+            console.log('Appended chunk:', chunkId);
+            return data;
+        }
+
+        async function sourceOpenListener(videoId) {
+            console.log("MediaSource opened:", mediaSource.readyState);
+            const metadata = await fetchVideoMetadata(videoId);
+            const totalChunks = metadata.totalChunks;
+            const resolutions = metadata.resolutions;
+            mediaSource.duration = metadata.duration;
+            if (!MediaSource.isTypeSupported(VIDEO_MIME_CODEC)) {
+                console.error("Unsupported MIME type:", VIDEO_MIME_CODEC);
+                return;
+            }
+            const sourceBuffer = mediaSource.addSourceBuffer(VIDEO_MIME_CODEC);
+            sourceBuffer.mode = 'sequence';
+            sourceBuffer.appendBuffer(await fetchAndAttachChunk(videoId + RES + resolutions[await getResolution()] + CHUNK + index + EXTENSION));
+            index++;
+            timeupdateHandler = async () => {
+                await updateAtLowBuffer(sourceBuffer, videoId, totalChunks, resolutions);
+            };
+            video.addEventListener('timeupdate', timeupdateHandler);
+        }
+
+        async function getResolution() {
+            if ('connection' in navigator && 'downlink' in navigator.connection) {
+                console.log(`Estimated downlink speed: ${navigator.connection.downlink} Mbps`);
+                if (navigator.connection.downlink > 5) {
+                    return "HIGH"
+                } else {
+                    return "LOW"
+                }
+            } else {
+                return "LOW"
+            }
+        }
+
+        async function updateAtLowBuffer(sourceBuffer, videoId, totalChunks, resolutions) {
+            const currentTime = video.currentTime;
+            const buf = video.buffered;
+            let bufferEnd = 0;
+
+            // loop through buffered video chunks.
+            // needed when chunks are disjoint. Could happen when user tries to seek
+            for (let i = 0; i < buf.length; i++) {
+                if (buf.start(i) <= currentTime && currentTime <= buf.end(i)) {
+                    bufferEnd = buf.end(i);
+                    break;
+                }
+            }
+            const secondsLeft = bufferEnd - currentTime;
+            // console.log("secondsLeft: " + secondsLeft);
+            if (secondsLeft < 2 && !sourceBuffer.updating && !lockSourceBufferForAppend && index < totalChunks) {
+                lockSourceBufferForAppend = true;
+                sourceBuffer.appendBuffer(await fetchAndAttachChunk(videoId + RES + resolutions[await getResolution()] + CHUNK + index + EXTENSION));
+                index++;
+                sourceBuffer.addEventListener('updateend', async () => {
+                    lockSourceBufferForAppend = false;
+                }, {once: true});
+                if (index == totalChunks) {
+                    video.removeEventListener('timeupdate', timeupdateHandler);
+                    sourceBuffer.addEventListener('updateend', async () => {
+                        mediaSource.endOfStream();
+                    }, {once: true});
+                }
+            }
+
+        }
+        mediaSource.addEventListener('sourceopen', sourceOpenListener(videoId));
+    })();
+</script>
+</body>
+</html>

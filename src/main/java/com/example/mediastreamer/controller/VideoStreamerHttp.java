@@ -1,5 +1,6 @@
 package com.example.mediastreamer.controller;
 
+import com.example.mediastreamer.model.PreSignedDownloadUrlData;
 import com.example.mediastreamer.model.VideoMetadata;
 import com.example.mediastreamer.service.minio.MinIoService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,16 +13,12 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import static com.example.mediastreamer.utils.Constants.VIDEO_STREAM_BUFFER;
 
 @RestController
-@RequestMapping
+@RequestMapping(path = "/video")
 public class VideoStreamerHttp {
 
     private static String BYTES = "bytes=";
@@ -29,7 +26,7 @@ public class VideoStreamerHttp {
     @Autowired
     private MinIoService minIoService;
 
-    @GetMapping("/video/{videoId}")
+    @GetMapping("/{videoId}")
     public ResponseEntity<byte[]> streamVideo(@PathVariable("videoId") String videoId,
                                               @RequestHeader(value = "Range", required = false) String rangeHeader) {
         long rangeStart = 0;
@@ -54,7 +51,7 @@ public class VideoStreamerHttp {
                 .body(videoBytes);
     }
 
-    @GetMapping("/video/chunk/{chunkId}")
+    @GetMapping("/chunk/{chunkId}")
     public ResponseEntity<byte[]> streamVideoChunks(@PathVariable("chunkId") String chunkId) {
         byte[] videoBytes = minIoService.downloadVideoChunk(chunkId);
         return ResponseEntity
@@ -64,19 +61,17 @@ public class VideoStreamerHttp {
                 .body(videoBytes);
     }
 
-    @GetMapping("/video/local/chunk/{chunkId}")
-    public ResponseEntity<byte[]> streamLocalVideoChunks(@PathVariable("chunkId") String chunkId) throws IOException {
-        Path path = Paths.get("/Users/kedarkhetia/IdeaProjects/MediaStreamer/src/main/resources/videos/" + chunkId);
-        byte[] videoBytes = Files.readAllBytes(path);
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .header(HttpHeaders.CONTENT_TYPE,"video/mp4")
-                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoBytes.length))
-                .body(videoBytes);
-    }
-
-    @GetMapping("video/{videoId}/metadata")
+    @GetMapping("/{videoId}/metadata")
     public VideoMetadata getVideoMetadata(@PathVariable("videoId") String videoId) {
         return minIoService.downloadVideoMetadata(videoId);
     }
+
+    @GetMapping("/getPresignedUrl/chunk/{chunkId}")
+    public ResponseEntity<PreSignedDownloadUrlData> getPreSignedDownloadUrlForChunk(@PathVariable("chunkId") String chunkId) {
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                .body(minIoService.getPreSignedVideoDownloadUrl(chunkId));
+    }
+
 }
