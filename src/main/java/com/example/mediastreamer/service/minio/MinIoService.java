@@ -9,24 +9,14 @@ import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
-import io.minio.errors.ErrorResponseException;
-import io.minio.errors.InsufficientDataException;
-import io.minio.errors.InternalException;
-import io.minio.errors.InvalidResponseException;
-import io.minio.errors.ServerException;
-import io.minio.errors.XmlParserException;
 import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -58,24 +48,6 @@ public class MinIoService {
     public MinIoService(MinioClient minioClient) {
         this.gson = new Gson();
         this.minioClient = minioClient;
-    }
-
-    public synchronized boolean uploadVideo(MultipartFile file, String videoId) {
-        try (InputStream inputStream = file.getInputStream()) {
-            if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(videoBucket).build())) {
-                System.out.println("Bucket " + videoBucket + " does not exist!");
-                return false;
-            }
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(videoBucket)
-                    .object(videoId)
-                    .stream(inputStream, file.getSize(), -1)
-                    .build());
-            return true;
-        } catch (Exception e) {
-            System.out.println("Something went wrong while uploading file to bucket: " + e);
-            return false;
-        }
     }
 
     public synchronized boolean uploadVideoMetadata(VideoMetadata metadata) {
@@ -123,30 +95,6 @@ public class MinIoService {
             return gson.fromJson(metadataJson, VideoMetadata.class);
         } catch (Exception e) {
             System.out.println("Video metadata for video with id: " + videoId + " not found!");
-            return null;
-        }
-    }
-
-    public synchronized byte[] downloadVideo(String videoId, long offset, long length) {
-        try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
-                .bucket(videoBucket)
-                .object(videoId)
-                .offset(offset)
-                .length(length)
-                .build())) {
-            return stream.readAllBytes();
-        } catch (Exception e) {
-            System.out.println("Video metadata for video with id: " + videoId + " not found!");
-            return null;
-        }
-    }
-
-    public synchronized byte[] downloadVideoChunk(String chunkId) {
-        try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
-                .bucket(videoChunksBucket).object(chunkId).build())) {
-            return stream.readAllBytes();
-        } catch (Exception e) {
-            System.out.println("chunk with id: " + chunkId + " not found!");
             return null;
         }
     }
