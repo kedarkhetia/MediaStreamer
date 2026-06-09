@@ -26,4 +26,5 @@ public class VideoMetadata {
     private int totalChunks;
     private long size;
     private List<String> chunks;
+    private Map<String, List<String>> transcodedChunks;
 }

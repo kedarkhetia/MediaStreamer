@@ -11,7 +11,12 @@
         "s3:ListMultipartUploadParts",
         "s3:ListBucketMultipartUploads"
       ],
-      "Resource" : ["arn:aws:s3:::videos/*", "arn:aws:s3:::video-metadata/*", "arn:aws:s3:::video-chunks/*"]
+      "Resource" : [
+        "arn:aws:s3:::videos/*",
+        "arn:aws:s3:::video-metadata/*",
+        "arn:aws:s3:::video-chunks/*",
+        "arn:aws:s3:::video-transcoded-chunks/*"
+      ]
     },
     {
       "Effect" : "Allow",

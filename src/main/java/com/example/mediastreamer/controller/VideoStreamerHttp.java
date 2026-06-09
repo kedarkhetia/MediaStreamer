@@ -31,7 +31,7 @@ public class VideoStreamerHttp {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .header(HttpHeaders.CONTENT_TYPE, "application/json")
-                .body(minIoService.getPreSignedVideoDownloadUrl(chunkId));
+                .body(minIoService.getPreSignedChunkDownloadUrl(chunkId));
     }
 
 }

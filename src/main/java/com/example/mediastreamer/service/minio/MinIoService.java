@@ -9,19 +9,20 @@ import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.UploadObjectArgs;
 import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static com.example.mediastreamer.utils.Constants.BUFFER;
 import static com.example.mediastreamer.utils.Constants.JSON_CONTENT_TYPE;
 import static com.example.mediastreamer.utils.Constants.JSON_EXTENSION;
 import static com.example.mediastreamer.utils.Constants.VIDEO_EXTENSION_KEY;
@@ -37,6 +38,9 @@ public class MinIoService {
 
     @Value("${minio.video.chunks.bucket}")
     private String videoChunksBucket;
+
+    @Value("${minio.video.transcoded.chunks.bucket}")
+    private String videoTranscodedChunksBucket;
 
     @Autowired
     private final MinioClient minioClient;
@@ -71,19 +75,14 @@ public class MinIoService {
         }
     }
 
-    public synchronized void uploadVideoChunkUsingThreadStream(InputStream stream, String chunkId) {
-        try {
-            minioClient.putObject(PutObjectArgs
-                    .builder()
-                    .bucket(videoChunksBucket)
-                    .object(chunkId)
-                    .stream(stream, -1, BUFFER) // unknown chunk size
-                    .build());
-        } catch (Exception e) {
-            System.out.println("Something went wrong while uploading chunk with chunkId: " + chunkId
-                    + " to bucket with bucketId: " + videoChunksBucket + ". Error: " + e);
-            e.printStackTrace();
-        }
+    public void uploadChunkFile(String objectName, File localFile) throws Exception {
+        minioClient.uploadObject(UploadObjectArgs
+                .builder()
+                .bucket(videoChunksBucket)
+                .object(objectName)
+                .filename(localFile.getAbsolutePath())
+                .contentType("video/mp4")
+                .build());
     }
 
     public synchronized VideoMetadata downloadVideoMetadata(String videoId) {
@@ -99,19 +98,7 @@ public class MinIoService {
         }
     }
 
-    public synchronized InputStream getInputStreamForVideo(String videoId) {
-        try {
-            return minioClient.getObject(GetObjectArgs.builder()
-                    .bucket(videoBucket)
-                    .object(videoId)
-                    .build());
-        } catch (Exception e) {
-            System.out.println("Failed to get InputStream for video with id: " + videoId);
-            return null;
-        }
-    }
-
-    public synchronized PreSignedDownloadUrlData getPreSignedVideoDownloadUrl(String chunkId) {
+    public synchronized PreSignedDownloadUrlData getPreSignedChunkDownloadUrl(String chunkId) {
         try {
             String url = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs
                     .builder()
@@ -122,6 +109,26 @@ public class MinIoService {
                     .build());
             return PreSignedDownloadUrlData.builder()
                     .chunkId(chunkId)
+                    .preSignedUrl(url)
+                    .build();
+        } catch (Exception e) {
+            System.out.println("Could not generate preSigned url for video download");
+            return null;
+        }
+    }
+
+    public synchronized PreSignedDownloadUrlData getPreSignedVideoDownloadUrl(String videoId) {
+        try {
+            String url = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs
+                    .builder()
+                    .method(Method.GET)
+                    .bucket(videoBucket)
+                    .object(videoId)
+                    .expiry(PRE_SIGNED_URL_TIMEOUT, TimeUnit.HOURS)
+                    .build());
+            System.out.println("getPreSignedVideoDownloadUrl: " + url);
+            return PreSignedDownloadUrlData.builder()
+                    .chunkId(videoId)
                     .preSignedUrl(url)
                     .build();
         } catch (Exception e) {

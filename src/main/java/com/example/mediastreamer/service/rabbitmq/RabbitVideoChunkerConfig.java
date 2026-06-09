@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class RabbitConfig {
+public class RabbitVideoChunkerConfig {
 
     public static final String QUEUE_NAME = "video-chunker";
     private static final String DL_QUEUE_NAME = "video-chunker-dlq";

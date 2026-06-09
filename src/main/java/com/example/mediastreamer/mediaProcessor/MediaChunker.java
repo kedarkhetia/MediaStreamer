@@ -1,10 +1,9 @@
 package com.example.mediastreamer.mediaProcessor;
 
 import com.example.mediastreamer.model.MinioAmqpEvent;
-import com.example.mediastreamer.service.ffmpeg.FrameProcessor;
+import com.example.mediastreamer.service.ffmpeg.FfmpegChunker;
 import com.example.mediastreamer.service.rabbitmq.RabbitVideoChunkerConfig;
 import com.google.gson.Gson;
-import io.minio.messages.Event;
 import io.minio.messages.EventType;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.listener.MessageListenerContainer;
@@ -21,7 +20,7 @@ public class MediaChunker {
     private RabbitListenerEndpointRegistry registry;
 
     @Autowired
-    private FrameProcessor frameProcessor;
+    private FfmpegChunker ffmpegChunker;
 
     private final Gson gson = new Gson();
 
@@ -41,7 +40,7 @@ public class MediaChunker {
                     if (record.getEventName().equals(EventType.OBJECT_CREATED_PUT.toString())) {
                         MinioAmqpEvent.S3 s3 = record.getS3();
                         System.out.println(LISTENER_ID + ": Processing Video: " + s3.getS3Object().getKey());
-                        frameProcessor.chunkVideos(s3.getS3Object().getKey());
+                        ffmpegChunker.chunkVideoNatively(s3.getS3Object().getKey());
                     }
                 }
             }
