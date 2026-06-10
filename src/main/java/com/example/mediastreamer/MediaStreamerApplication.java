@@ -1,6 +1,7 @@
 package com.example.mediastreamer;
 
 import com.example.mediastreamer.mediaProcessor.MediaChunker;
+import com.example.mediastreamer.mediaProcessor.MediaTranscoder420p;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
@@ -13,5 +14,7 @@ public class MediaStreamerApplication {
 		// Initialize media chunker bean.
 		MediaChunker mediaChunker = context.getBean(MediaChunker.class);
 		mediaChunker.start();
+		MediaTranscoder420p mediaTranscoder420p = context.getBean(MediaTranscoder420p.class);
+		mediaTranscoder420p.start();
 	}
 }

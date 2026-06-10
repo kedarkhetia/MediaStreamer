@@ -14,6 +14,8 @@ import java.util.TreeSet;
 import static com.example.mediastreamer.utils.Constants.CHUNK;
 import static com.example.mediastreamer.utils.Constants.CHUNK_SECONDS;
 import static com.example.mediastreamer.utils.Constants.FFMPEG_CHUNKS_TMP_DIR_PREFIX;
+import static com.example.mediastreamer.utils.Constants.MP4_EXT;
+import static com.example.mediastreamer.utils.helperMethods.cleanUpTempDirectory;
 
 /*
     The JVM-based video processing implementation using JavaCV/FFmpeg has been deprecated in favor of running native
@@ -66,16 +68,14 @@ public class FfmpegChunker {
                 throw new RuntimeException("FFmpeg failed with exit code: " + exitCode);
             }
 
-            // 3. Upload Output Files DIRECTLY using the MinIO SDK
+            // 3. Upload Output Files
             TreeSet<String> chunks = new TreeSet<>();
             File[] generatedFiles = tempDir.listFiles((dir, name) ->
-                    name.startsWith(videoId + "_") && name.endsWith(".mp4"));
+                    name.startsWith(videoId) && name.endsWith(MP4_EXT));
 
             if (generatedFiles != null) {
                 for (File chunkFile : generatedFiles) {
                     String minioObjectName = chunkFile.getName();
-
-                    // Direct SDK upload (no HTTP client needed)
                     minIoService.uploadChunkFile(minioObjectName, chunkFile);
                     chunks.add(minioObjectName);
                 }
@@ -98,13 +98,5 @@ public class FfmpegChunker {
         }
     }
 
-    private void cleanUpTempDirectory(File directory) {
-        File[] allContents = directory.listFiles();
-        if (allContents != null) {
-            for (File file : allContents) {
-                file.delete();
-            }
-        }
-        directory.delete();
-    }
+
 }

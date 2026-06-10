@@ -18,12 +18,12 @@ public class RabbitVideoChunkerConfig {
     private static final int ttl = 60000;
 
     @Bean
-    public DirectExchange videoExchange() {
+    public DirectExchange videoChunkerExchange() {
         return new DirectExchange(EXCHANGE_NAME, true, false);
     }
 
     @Bean
-    public Queue videoQueue() {
+    public Queue videoChunkerQueue() {
         return QueueBuilder.durable(QUEUE_NAME)
                 .deadLetterExchange(DL_QUEUE_NAME)
                 .ttl(ttl)
@@ -31,12 +31,12 @@ public class RabbitVideoChunkerConfig {
     }
 
     @Bean
-    public Queue deadLetterQueue() {
+    public Queue videoChunkerDeadLetterQueue() {
         return QueueBuilder.durable(DL_QUEUE_NAME).build();
     }
 
     @Bean
-    public Binding videoBinding(Queue videoQueue, DirectExchange videoExchange) {
-        return BindingBuilder.bind(videoQueue).to(videoExchange).with(ROUTING_KEY);
+    public Binding videoChunkerBinding(Queue videoChunkerQueue, DirectExchange videoChunkerExchange) {
+        return BindingBuilder.bind(videoChunkerQueue).to(videoChunkerExchange).with(ROUTING_KEY);
     }
 }

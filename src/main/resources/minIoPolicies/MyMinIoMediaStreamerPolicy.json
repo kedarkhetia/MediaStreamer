@@ -15,6 +15,7 @@
         "arn:aws:s3:::videos/*",
         "arn:aws:s3:::video-metadata/*",
         "arn:aws:s3:::video-chunks/*",
+        "arn:aws:s3:::video-chunks-metadata/*",
         "arn:aws:s3:::video-transcoded-chunks/*"
       ]
     },
