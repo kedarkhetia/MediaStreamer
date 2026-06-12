@@ -2,7 +2,7 @@ package com.example.mediastreamer.mediaProcessor;
 
 import com.example.mediastreamer.model.MinioAmqpEvent;
 import com.example.mediastreamer.service.ffmpeg.FfmpegChunker;
-import com.example.mediastreamer.service.rabbitmq.RabbitVideoChunkerConfig;
+import com.example.mediastreamer.service.rabbitmq.RabbitMediaChunkerConfig;
 import com.google.gson.Gson;
 import io.minio.messages.EventType;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -30,7 +30,7 @@ public class MediaChunker {
         this.registry = registry;
     }
 
-    @RabbitListener(id = LISTENER_ID, queues = RabbitVideoChunkerConfig.QUEUE_NAME, autoStartup = "false")
+    @RabbitListener(id = LISTENER_ID, queues = RabbitMediaChunkerConfig.QUEUE_NAME, autoStartup = "false")
     public void processVideoMessage(String message) {
         try {
             MinioAmqpEvent event = gson.fromJson(message, MinioAmqpEvent.class);

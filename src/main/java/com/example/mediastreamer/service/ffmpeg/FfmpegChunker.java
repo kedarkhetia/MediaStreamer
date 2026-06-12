@@ -15,7 +15,7 @@ import static com.example.mediastreamer.utils.Constants.CHUNK;
 import static com.example.mediastreamer.utils.Constants.CHUNK_SECONDS;
 import static com.example.mediastreamer.utils.Constants.FFMPEG_CHUNKS_TMP_DIR_PREFIX;
 import static com.example.mediastreamer.utils.Constants.MP4_EXT;
-import static com.example.mediastreamer.utils.helperMethods.cleanUpTempDirectory;
+import static com.example.mediastreamer.utils.HelperMethods.cleanUpTempDirectory;
 
 /*
     The JVM-based video processing implementation using JavaCV/FFmpeg has been deprecated in favor of running native

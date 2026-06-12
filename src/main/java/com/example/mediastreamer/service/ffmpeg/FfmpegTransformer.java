@@ -2,13 +2,13 @@ package com.example.mediastreamer.service.ffmpeg;
 
 import com.example.mediastreamer.model.ChunkMetadata;
 import com.example.mediastreamer.service.minio.MinIoService;
+import com.example.mediastreamer.utils.MediaUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeSet;
 
@@ -17,7 +17,7 @@ import static com.example.mediastreamer.utils.Constants.FFMPEG_CHUNKS_TMP_DIR_PR
 import static com.example.mediastreamer.utils.Constants.MP4_EXT;
 import static com.example.mediastreamer.utils.Constants.RE_ENCODED_STRING;
 import static com.example.mediastreamer.utils.Constants.VISUAL_FIDELITY_PARITY;
-import static com.example.mediastreamer.utils.helperMethods.cleanUpTempDirectory;
+import static com.example.mediastreamer.utils.HelperMethods.cleanUpTempDirectory;
 
 @Service
 public class FfmpegTransformer {
@@ -25,26 +25,37 @@ public class FfmpegTransformer {
     @Autowired
     private MinIoService minIoService;
 
-    private static final String RESOLUTION_COMMAND_420P = "scale=-2:'min(420,ih)'";
-
-    public void transformVideoNatively(String chunkIdOriginal, String resolution) {
+    public void transformVideoNatively(String chunkIdOriginal, int resolution, String resolutionCommand) {
         File tempDir = null;
+
         try {
-            String chunkId = chunkIdOriginal.split(MP4_EXT)[0];
-            tempDir = Files.createTempDirectory(FFMPEG_CHUNKS_TMP_DIR_PREFIX + chunkId).toFile();
-            ChunkMetadata chunkMetadata = getChunkMetadata(chunkId);
-
-            // 1. Get the stream URL from MinIO for FFmpeg input
+            // Get the stream URL from MinIO for FFmpeg input
             String chunkPreSignedUrl = minIoService.getPreSignedChunkDownloadUrl(chunkIdOriginal).getPreSignedUrl();
+            String curResolutionHeightAndWidth = MediaUtils.getVideoResolution(chunkPreSignedUrl);
+            System.out.println("Current Resolution: " + curResolutionHeightAndWidth);
+            int curResolution = Integer.parseInt(curResolutionHeightAndWidth.split("x")[1]);
 
-            // 2. Transcode using native ffmpeg command
+            // We can skip transformation even when curResolution == resolution.
+            // However, we would need logic to copy the data with new id to
+            // video-transcoded-chunks bucket. For now, we are just transforming
+            // even when resolutions are same.
+            // TODO: Implement above.
+            if (curResolution < resolution) {
+                return;
+            }
+
+            String chunkId = chunkIdOriginal.split(MP4_EXT)[0];
+            ChunkMetadata chunkMetadata = getChunkMetadata(chunkId);
+            tempDir = Files.createTempDirectory(FFMPEG_CHUNKS_TMP_DIR_PREFIX + chunkId).toFile();
+
+            // Transcode using native ffmpeg command
             List<String> command = new ArrayList<>();
             command.add("ffmpeg"); command.add("-y");
             command.add("-reconnect"); command.add("1");
             command.add("-reconnect_streamed"); command.add("1");
             command.add("-reconnect_delay_max"); command.add("5");
             command.add("-i"); command.add(chunkPreSignedUrl);
-            command.add("-vf"); command.add(RESOLUTION_COMMAND_420P);
+            command.add("-vf"); command.add(resolutionCommand);
             command.add("-c:v"); command.add(RE_ENCODED_STRING);
             command.add("-crf"); command.add(VISUAL_FIDELITY_PARITY);
             command.add("-preset"); command.add("medium");

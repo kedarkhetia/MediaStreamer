@@ -2,7 +2,7 @@ package com.example.mediastreamer.utils;
 
 import java.io.File;
 
-public class helperMethods {
+public class HelperMethods {
 
     public static void cleanUpTempDirectory(File directory) {
         File[] allContents = directory.listFiles();
@@ -13,4 +13,6 @@ public class helperMethods {
         }
         directory.delete();
     }
+
+
 }
