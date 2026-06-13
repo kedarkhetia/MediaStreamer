@@ -10,6 +10,8 @@ import org.springframework.amqp.core.MessageListener;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static com.example.mediastreamer.utils.Constants.X_AMZ_META_RESOLUTION_WIDTH_KEY;
+
 public class MediaTranscoderMessageListener implements MessageListener {
 
     private final Gson gson = new Gson();
@@ -38,11 +40,21 @@ public class MediaTranscoderMessageListener implements MessageListener {
                     if (record.getEventName().equals(EventType.OBJECT_CREATED_COMPLETE_MULTIPART_UPLOAD.toString())) {
                         MinioAmqpEvent.S3 s3 = record.getS3();
                         System.out.println(listenerId + ": Processing Video: " + s3.getS3Object().getKey());
+                        int curResolution = Integer.parseInt(s3.getS3Object().getUserMetadata().get(X_AMZ_META_RESOLUTION_WIDTH_KEY));
+                        System.out.println("Current Resolution: " + curResolution);
+
+                        // We can skip transformation even when curResolution == resolution.
+                        // However, we would need logic to copy the data with new id to
+                        // video-transcoded-chunks bucket. For now, we are just transforming
+                        // even when resolutions are same.
+                        // TODO: Implement above.
+                        if (curResolution < resolution) {
+                            return;
+                        }
                         ffmpegTransformer.transformVideoNatively(s3.getS3Object().getKey(), resolution, resolutionCommand);
                     }
                 }
             }
-
         } catch (Exception e) {
             System.err.println("Failed to parse message: " + e.getMessage());
         }

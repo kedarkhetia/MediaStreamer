@@ -93,7 +93,7 @@ public class MinIoService {
         }
     }
 
-    public boolean uploadChunkFile(String objectName, File localFile) {
+    public boolean uploadChunkFile(String objectName, Map<String, String> metadata, File localFile) {
         try {
             minioClient.uploadObject(UploadObjectArgs
                     .builder()
@@ -101,6 +101,7 @@ public class MinIoService {
                     .object(objectName)
                     .filename(localFile.getAbsolutePath())
                     .contentType(MP4_CONTENT_TYPE)
+                    .userMetadata(metadata)
                     .build());
             return true;
         } catch (Exception e) {

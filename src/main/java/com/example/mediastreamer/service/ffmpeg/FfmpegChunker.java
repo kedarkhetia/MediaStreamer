@@ -2,6 +2,7 @@ package com.example.mediastreamer.service.ffmpeg;
 
 import com.example.mediastreamer.model.VideoMetadata;
 import com.example.mediastreamer.service.minio.MinIoService;
+import com.example.mediastreamer.utils.MediaUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -9,12 +10,16 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeSet;
 
 import static com.example.mediastreamer.utils.Constants.CHUNK;
 import static com.example.mediastreamer.utils.Constants.CHUNK_SECONDS;
 import static com.example.mediastreamer.utils.Constants.FFMPEG_CHUNKS_TMP_DIR_PREFIX;
 import static com.example.mediastreamer.utils.Constants.MP4_EXT;
+import static com.example.mediastreamer.utils.Constants.RESOLUTION_METADATA_KEY_HEIGHT;
+import static com.example.mediastreamer.utils.Constants.RESOLUTION_METADATA_KEY_WIDTH;
+import static com.example.mediastreamer.utils.Constants.RESOLUTION_SPLIT_TOKEN;
 import static com.example.mediastreamer.utils.HelperMethods.cleanUpTempDirectory;
 
 /*
@@ -37,6 +42,7 @@ public class FfmpegChunker {
     @Autowired
     private MinIoService minIoService;
 
+
     public void chunkVideoNatively(String videoId) {
         File tempDir = null;
         try {
@@ -45,6 +51,7 @@ public class FfmpegChunker {
 
             // 1. Get the stream URL from MinIO for FFmpeg input
             String minioStreamUrl = minIoService.getPreSignedVideoDownloadUrl(videoId).getPreSignedUrl();
+            String resolution = MediaUtils.getVideoResolution(minioStreamUrl);
 
             // 2. FFmpeg configuration (Streaming, zero-transcoding, exact naming)
             List<String> command = new ArrayList<>();
@@ -72,11 +79,17 @@ public class FfmpegChunker {
             TreeSet<String> chunks = new TreeSet<>();
             File[] generatedFiles = tempDir.listFiles((dir, name) ->
                     name.startsWith(videoId) && name.endsWith(MP4_EXT));
+            String[] resolutionHeightAndWidth = resolution.split(RESOLUTION_SPLIT_TOKEN);
+            Map<String, String> metadata = Map.of(
+                    RESOLUTION_METADATA_KEY_HEIGHT, resolutionHeightAndWidth[0],
+                    RESOLUTION_METADATA_KEY_WIDTH, resolutionHeightAndWidth[1]
+            );
+
 
             if (generatedFiles != null) {
                 for (File chunkFile : generatedFiles) {
                     String minioObjectName = chunkFile.getName();
-                    minIoService.uploadChunkFile(minioObjectName, chunkFile);
+                    minIoService.uploadChunkFile(minioObjectName, metadata, chunkFile);
                     chunks.add(minioObjectName);
                 }
             }
@@ -84,6 +97,7 @@ public class FfmpegChunker {
             // 4. Finalize Metadata
             videoMetadata.setTotalChunks(chunks.size());
             videoMetadata.setChunks(chunks.stream().toList());
+            videoMetadata.setResolution(resolution);
             minIoService.uploadVideoMetadata(videoMetadata);
 
             System.out.println("Successfully streamed, chunked, and uploaded " + chunks.size() + " files.");

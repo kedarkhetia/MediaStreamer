@@ -31,18 +31,6 @@ public class FfmpegTransformer {
         try {
             // Get the stream URL from MinIO for FFmpeg input
             String chunkPreSignedUrl = minIoService.getPreSignedChunkDownloadUrl(chunkIdOriginal).getPreSignedUrl();
-            String curResolutionHeightAndWidth = MediaUtils.getVideoResolution(chunkPreSignedUrl);
-            System.out.println("Current Resolution: " + curResolutionHeightAndWidth);
-            int curResolution = Integer.parseInt(curResolutionHeightAndWidth.split("x")[1]);
-
-            // We can skip transformation even when curResolution == resolution.
-            // However, we would need logic to copy the data with new id to
-            // video-transcoded-chunks bucket. For now, we are just transforming
-            // even when resolutions are same.
-            // TODO: Implement above.
-            if (curResolution < resolution) {
-                return;
-            }
 
             String chunkId = chunkIdOriginal.split(MP4_EXT)[0];
             ChunkMetadata chunkMetadata = getChunkMetadata(chunkId);

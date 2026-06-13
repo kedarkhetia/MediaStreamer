@@ -3,6 +3,7 @@ package com.example.mediastreamer.model;
 import com.google.gson.annotations.SerializedName;
 import lombok.Data;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class MinioAmqpEvent {
@@ -43,5 +44,6 @@ public class MinioAmqpEvent {
         private String key;
         private long size;
         private String contentType;
+        private Map<String, String> userMetadata;
     }
 }

@@ -13,6 +13,10 @@ public class Constants {
     public static final String RE_ENCODED_STRING = "libx264"; // Re-encode video track
     public static final String VISUAL_FIDELITY_PARITY = "23"; // Maintain visual fidelity parity
     public static final String VIDEO_EXTENSION_KEY = "VIDEO_FORMAT";
+    public static final String RESOLUTION_METADATA_KEY_HEIGHT = "resolution-height";
+    public static final String RESOLUTION_METADATA_KEY_WIDTH = "resolution-width";
+    public static final String RESOLUTION_SPLIT_TOKEN = "x";
+    public static final String X_AMZ_META_RESOLUTION_WIDTH_KEY = "X-Amz-Meta-Resolution-Width";
     public static final String VIDEO_TRANSCODER_420P_QUEUE_NAME = "video-transcoder-420p";
     public static final String VIDEO_TRANSCODER_720P_QUEUE_NAME = "video-transcoder-720p";
     public static final String VIDEO_TRANSCODER_1080P_QUEUE_NAME = "video-transcoder-1080p";

@@ -7,8 +7,6 @@ import java.util.List;
 
 public class MediaUtils {
 
-    // TODO: Add a local cache here with key as videoUrlOrPath and value as resolution.
-    // That way we can avoid duplicate command execution for resolution identification.
     public static String getVideoResolution(String videoUrlOrPath) {
         List<String> command = new ArrayList<>();
         command.add("ffprobe");

@@ -22,6 +22,7 @@ public class VideoMetadata {
     private double duration;
     @NonNull
     private List<String> tags;
+    private String resolution;
     private Map<String, Integer> resolutions;
     private int totalChunks;
     private long size;
