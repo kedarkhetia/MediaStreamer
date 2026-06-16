@@ -12,7 +12,7 @@ import java.util.List;
 
 import static com.example.mediastreamer.utils.Constants.X_AMZ_META_RESOLUTION_WIDTH_KEY;
 
-public class MediaTranscoderMessageListener implements MessageListener {
+public class MessageListenerTranscodeWorker implements MessageListener {
 
     private final Gson gson = new Gson();
 
@@ -21,7 +21,7 @@ public class MediaTranscoderMessageListener implements MessageListener {
     private String resolutionCommand;
     private int resolution;
 
-    public MediaTranscoderMessageListener(FfmpegTransformer ffmpegTransformer, String listenerId,
+    public MessageListenerTranscodeWorker(FfmpegTransformer ffmpegTransformer, String listenerId,
                                           int resolution, String resolutionCommand) {
         this.ffmpegTransformer = ffmpegTransformer;
         this.listenerId = listenerId;
@@ -31,7 +31,6 @@ public class MediaTranscoderMessageListener implements MessageListener {
 
     @Override
     public void onMessage(Message message) {
-        System.out.println(message);
         try {
             MinioAmqpEvent event = gson.fromJson(new String(message.getBody(), StandardCharsets.UTF_8), MinioAmqpEvent.class);
             if (event.getRecords() != null && !event.getRecords().isEmpty()) {

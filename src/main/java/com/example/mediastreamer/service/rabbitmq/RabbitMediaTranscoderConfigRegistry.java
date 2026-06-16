@@ -1,22 +1,52 @@
 package com.example.mediastreamer.service.rabbitmq;
 
+import com.example.mediastreamer.mediaProcessor.MessageListenerTranscodeWorker;
+import com.example.mediastreamer.service.ffmpeg.FfmpegTransformer;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
-import static com.example.mediastreamer.utils.Constants.VIDEO_TRANSCODER_1080P_QUEUE_NAME;
-import static com.example.mediastreamer.utils.Constants.VIDEO_TRANSCODER_420P_QUEUE_NAME;
-import static com.example.mediastreamer.utils.Constants.VIDEO_TRANSCODER_720P_QUEUE_NAME;
+import static com.example.mediastreamer.utils.Constants.VIDEO_TRANSCODER_PREFIX;
 
 @Configuration
+@Profile("RabbitMediaTranscoder")
 public class RabbitMediaTranscoderConfigRegistry {
 
     private static final String EXCHANGE_NAME = "video-transcoder-exchange";
     private static final int ttl = 60000;
+
+    @Bean
+    public SimpleMessageListenerContainer simpleMessageListenerTranscoderContainer(
+            ConnectionFactory connectionFactory,
+            MessageListenerTranscodeWorker messageListenerTranscodeWorker,
+            @Value("${worker.resolution}") int resolution
+    ) {
+        SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
+        container.setQueueNames(VIDEO_TRANSCODER_PREFIX + resolution);
+        container.setMessageListener(messageListenerTranscodeWorker);
+        container.setConnectionFactory(connectionFactory);
+        container.setPrefetchCount(1);
+        container.setAutoStartup(true);
+        return container;
+    }
+
+    @Bean
+    public MessageListenerTranscodeWorker messageListenerTranscodeWorker(
+            FfmpegTransformer ffmpegTransformer,
+            @Value("${worker.resolution}") int resolution,
+            @Value("${worker.resolution-scale-command}") String resolutionCommand
+    ) {
+        String listenerId = "Worker-" + resolution + "p";
+        return new MessageListenerTranscodeWorker(ffmpegTransformer, listenerId, resolution, resolutionCommand);
+    }
 
     @Bean
     public FanoutExchange videoTranscoderExchange() {
@@ -24,38 +54,15 @@ public class RabbitMediaTranscoderConfigRegistry {
     }
 
     @Bean
-    public Queue videoTranscoder420pQueue() {
-        return QueueBuilder.durable(VIDEO_TRANSCODER_420P_QUEUE_NAME)
+    public Queue videoTranscoderQueue(@Value("${worker.resolution}") String resolution) {
+        return QueueBuilder.durable(VIDEO_TRANSCODER_PREFIX + resolution)
                 .ttl(ttl)
                 .build();
     }
 
     @Bean
-    public Queue videoTranscoder720pQueue() {
-        return QueueBuilder.durable(VIDEO_TRANSCODER_720P_QUEUE_NAME)
-                .ttl(ttl)
-                .build();
+    public Binding videoTranscoderBinding(Queue videoTranscoderQueue, FanoutExchange videoTranscoderExchange) {
+        return BindingBuilder.bind(videoTranscoderQueue).to(videoTranscoderExchange);
     }
 
-    @Bean
-    public Queue videoTranscoder1080pQueue() {
-        return QueueBuilder.durable(VIDEO_TRANSCODER_1080P_QUEUE_NAME)
-                .ttl(ttl)
-                .build();
-    }
-
-    @Bean
-    public Binding videoTranscoder420pBinding(Queue videoTranscoder420pQueue, FanoutExchange videoTranscoderExchange) {
-        return BindingBuilder.bind(videoTranscoder420pQueue).to(videoTranscoderExchange);
-    }
-
-    @Bean
-    public Binding videoTranscoder720pBinding(Queue videoTranscoder720pQueue, FanoutExchange videoTranscoderExchange) {
-        return BindingBuilder.bind(videoTranscoder720pQueue).to(videoTranscoderExchange);
-    }
-
-    @Bean
-    public Binding videoTranscoder1080pBinding(Queue videoTranscoder1080pQueue, FanoutExchange videoTranscoderExchange) {
-        return BindingBuilder.bind(videoTranscoder1080pQueue).to(videoTranscoderExchange);
-    }
 }

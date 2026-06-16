@@ -46,13 +46,6 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Redis (Jedis client) -->
-		<dependency>
-			<groupId>redis.clients</groupId>
-			<artifactId>jedis</artifactId>
-			<version>6.2.0</version>
-		</dependency>
-
 		<!-- MinIO Java SDK -->
 		<!-- https://docs.min.io/community/minio-object-store/developers/java/API.html -->
 		<dependency>

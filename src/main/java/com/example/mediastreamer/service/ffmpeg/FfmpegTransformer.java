@@ -2,7 +2,6 @@ package com.example.mediastreamer.service.ffmpeg;
 
 import com.example.mediastreamer.model.ChunkMetadata;
 import com.example.mediastreamer.service.minio.MinIoService;
-import com.example.mediastreamer.utils.MediaUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
