@@ -56,7 +56,6 @@ public class RabbitMediaTranscoderConfigRegistry {
     @Bean
     public Queue videoTranscoderQueue(@Value("${worker.resolution}") String resolution) {
         return QueueBuilder.durable(VIDEO_TRANSCODER_PREFIX + resolution)
-                .deadLetterExchange(VIDEO_TRANSCODER_PREFIX + resolution + "-dlq")
                 .ttl(ttl)
                 .build();
     }

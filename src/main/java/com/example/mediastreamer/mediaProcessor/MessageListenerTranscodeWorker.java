@@ -36,7 +36,9 @@ public class MessageListenerTranscodeWorker implements MessageListener {
             if (event.getRecords() != null && !event.getRecords().isEmpty()) {
                 List<MinioAmqpEvent.Record> records = event.getRecords();
                 for (MinioAmqpEvent.Record record : records) {
-                    if (record.getEventName().equals(EventType.OBJECT_CREATED_COMPLETE_MULTIPART_UPLOAD.toString())) {
+                    // MinIO dynamically switches between multipart upload (filesize > 5 MB) and object created put (filesize <= 5 MB)
+                    if (record.getEventName().equals(EventType.OBJECT_CREATED_COMPLETE_MULTIPART_UPLOAD.toString())
+                            || record.getEventName().equals(EventType.OBJECT_CREATED_PUT.toString())) {
                         MinioAmqpEvent.S3 s3 = record.getS3();
                         System.out.println(listenerId + ": Processing Video: " + s3.getS3Object().getKey());
                         int curResolution = Integer.parseInt(s3.getS3Object().getUserMetadata().get(X_AMZ_META_RESOLUTION_WIDTH_KEY));
@@ -48,7 +50,7 @@ public class MessageListenerTranscodeWorker implements MessageListener {
                         // even when resolutions are same.
                         // TODO: Implement above.
                         if (curResolution < resolution) {
-                            return;
+                            continue;
                         }
                         ffmpegTransformer.transformVideoNatively(s3.getS3Object().getKey(), resolution, resolutionCommand);
                     }
