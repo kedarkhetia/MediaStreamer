@@ -1,31 +1,21 @@
 package com.example.mediastreamer.service.minio;
 
-import com.example.mediastreamer.model.ChunkMetadata;
 import com.example.mediastreamer.model.PreSignedDownloadUrlData;
 import com.example.mediastreamer.model.PreSignedUploadUrlData;
-import com.example.mediastreamer.model.VideoMetadata;
 import com.google.gson.Gson;
-import io.minio.BucketExistsArgs;
-import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
 import io.minio.UploadObjectArgs;
 import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static com.example.mediastreamer.utils.Constants.JSON_CONTENT_TYPE;
-import static com.example.mediastreamer.utils.Constants.JSON_EXTENSION;
 import static com.example.mediastreamer.utils.Constants.MP4_CONTENT_TYPE;
 import static com.example.mediastreamer.utils.Constants.VIDEO_EXTENSION_KEY;
 
@@ -35,17 +25,11 @@ public class MinIoService {
     @Value("${minio.video.bucket}")
     private String videoBucket;
 
-    @Value("${minio.video.metadata.bucket}")
-    private String videoMetadataBucket;
-
     @Value("${minio.video.chunks.bucket}")
     private String videoChunksBucket;
 
     @Value("${minio.video.transcoded.chunks.bucket}")
     private String videoTranscodedChunksBucket;
-
-    @Value("${minio.video.chunks.metadata.bucket}")
-    private String videoChunksMetadataBucket;
 
     @Autowired
     private final MinioClient minioClient;
@@ -57,40 +41,6 @@ public class MinIoService {
     public MinIoService(MinioClient minioClient) {
         this.gson = new Gson();
         this.minioClient = minioClient;
-    }
-
-    public boolean uploadVideoMetadata(VideoMetadata metadata) {
-        try {
-            String metadataJson = gson.toJson(metadata);
-            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(metadataJson.getBytes(StandardCharsets.UTF_8));
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(videoMetadataBucket)
-                    .contentType(JSON_CONTENT_TYPE)
-                    .object(metadata.getVideoId() + JSON_EXTENSION)
-                    .stream(byteArrayInputStream, byteArrayInputStream.available(), -1)
-                    .build());
-            return true;
-        } catch (Exception e) {
-            System.out.println("Something went wrong while uploading file metadata to bucket: " + e);
-            return false;
-        }
-    }
-
-    public boolean uploadVideoChunksMetadata(ChunkMetadata chunkMetadata) {
-        try {
-            String metadataJson = gson.toJson(chunkMetadata);
-            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(metadataJson.getBytes(StandardCharsets.UTF_8));
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(videoChunksMetadataBucket)
-                    .contentType(JSON_CONTENT_TYPE)
-                    .object(chunkMetadata.getChunkId() + JSON_EXTENSION)
-                    .stream(byteArrayInputStream, byteArrayInputStream.available(), -1)
-                    .build());
-            return true;
-        } catch (Exception e) {
-            System.out.println("Something went wrong while uploading chunks metadata to bucket: " + e);
-            return false;
-        }
     }
 
     public boolean uploadChunkFile(String objectName, Map<String, String> metadata, File localFile) {
@@ -123,32 +73,6 @@ public class MinIoService {
         } catch (Exception e) {
             System.out.println("Something went wrong while uploading transcoded chunk files to bucket: " + e);
             return false;
-        }
-    }
-
-    public synchronized VideoMetadata downloadVideoMetadata(String videoId) {
-        try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
-                .bucket(videoMetadataBucket)
-                .object(videoId + JSON_EXTENSION)
-                .build())) {
-            String metadataJson = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-            return gson.fromJson(metadataJson, VideoMetadata.class);
-        } catch (Exception e) {
-            System.out.println("Video metadata for video with id: " + videoId + " not found!");
-            return null;
-        }
-    }
-
-    public ChunkMetadata downloadVideoChunksMetadata(String chunkId) {
-        try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
-                .bucket(videoChunksMetadataBucket)
-                .object(chunkId + JSON_EXTENSION)
-                .build())) {
-            String metadataJson = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-            return gson.fromJson(metadataJson, ChunkMetadata.class);
-        } catch (Exception e) {
-            System.out.println("Chunk metadata for chunk with id: " + chunkId + " not found!");
-            return null;
         }
     }
 

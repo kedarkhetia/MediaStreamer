@@ -1,30 +1,52 @@
 package com.example.mediastreamer.model;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NonNull;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
+@Entity
+@Getter
+@Setter
 @Builder
-@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "video_metadata")
 public class VideoMetadata {
-    private boolean isUploaded = false;
-    @NonNull
+
+    @Id
+    @Column(name = "video_id")
     private String videoId;
-    @NonNull
+
     private String fileName;
-    @NonNull
     private String extension;
-    @NonNull
     private String title;
-    private double duration;
-    @NonNull
-    private List<String> tags;
     private String resolution;
-    private Map<String, Integer> resolutions;
-    private int totalChunks;
-    private long size;
-    private List<String> chunks;
+    private Integer totalChunks;
+    private Long size;
+
+    @Enumerated(EnumType.STRING)
+    private ProcessingStatus processingStatus;
+
+    @OneToMany(mappedBy = "videoMetadata", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("chunkIndex ASC")
+    @Builder.Default
+    private List<ChunkMetadata> chunks = new LinkedList<>();
+
+    public enum ProcessingStatus {
+        UPLOADING, CHUNKING, TRANSCODING, READY, FAILED
+    }
 }

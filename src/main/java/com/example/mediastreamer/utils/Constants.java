@@ -2,9 +2,7 @@ package com.example.mediastreamer.utils;
 
 public class Constants {
 
-    public static final String JSON_CONTENT_TYPE = "application/json";
     public static final String MP4_CONTENT_TYPE = "video/mp4";
-    public static final String JSON_EXTENSION = ".json";
     public static final String CHUNK_SECONDS = "4"; // 4 seconds
     public static final String CHUNK = "_chunk_%03d.mp4";
     public static final String ENCODED_CHUNK = "_encoded_";

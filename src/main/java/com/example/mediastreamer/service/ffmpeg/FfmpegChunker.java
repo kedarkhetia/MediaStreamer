@@ -1,6 +1,8 @@
 package com.example.mediastreamer.service.ffmpeg;
 
+import com.example.mediastreamer.model.ChunkMetadata;
 import com.example.mediastreamer.model.VideoMetadata;
+import com.example.mediastreamer.service.database.H2DatabaseService;
 import com.example.mediastreamer.service.minio.MinIoService;
 import com.example.mediastreamer.utils.MediaUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,9 +11,10 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 
 import static com.example.mediastreamer.utils.Constants.CHUNK;
 import static com.example.mediastreamer.utils.Constants.CHUNK_SECONDS;
@@ -42,11 +45,14 @@ public class FfmpegChunker {
     @Autowired
     private MinIoService minIoService;
 
+    @Autowired
+    private H2DatabaseService h2DatabaseService;
+
 
     public void chunkVideoNatively(String videoId) {
         File tempDir = null;
         try {
-            VideoMetadata videoMetadata = minIoService.downloadVideoMetadata(videoId);
+            VideoMetadata videoMetadata = h2DatabaseService.getVideoMetadata(videoId);
             tempDir = Files.createTempDirectory(FFMPEG_CHUNKS_TMP_DIR_PREFIX + videoId).toFile();
 
             // 1. Get the stream URL from MinIO for FFmpeg input
@@ -62,8 +68,10 @@ public class FfmpegChunker {
             command.add("-i"); command.add(minioStreamUrl);
             command.add("-c"); command.add("copy");
             command.add("-f"); command.add("segment");
-            command.add("-segment_time"); command.add(CHUNK_SECONDS);
-            command.add("-reset_timestamps"); command.add("1");
+            command.add("-segment_time");
+            command.add(CHUNK_SECONDS);
+            command.add("-reset_timestamps");
+            command.add("1");
             command.add(tempDir.getAbsolutePath() + "/" + videoId + CHUNK);
 
             ProcessBuilder processBuilder = new ProcessBuilder(command);
@@ -76,7 +84,6 @@ public class FfmpegChunker {
             }
 
             // 3. Upload Output Files
-            TreeSet<String> chunks = new TreeSet<>();
             File[] generatedFiles = tempDir.listFiles((dir, name) ->
                     name.startsWith(videoId) && name.endsWith(MP4_EXT));
             String[] resolutionHeightAndWidth = resolution.split(RESOLUTION_SPLIT_TOKEN);
@@ -87,21 +94,26 @@ public class FfmpegChunker {
 
 
             if (generatedFiles != null) {
-                for (File chunkFile : generatedFiles) {
-                    String minioObjectName = chunkFile.getName();
-                    minIoService.uploadChunkFile(minioObjectName, metadata, chunkFile);
-                    chunks.add(minioObjectName);
+                Arrays.sort(generatedFiles);
+                List<ChunkMetadata> chunksMetadata = new LinkedList<>();
+                for (int i=0; i<generatedFiles.length; i++) {
+                    File chunkFile = generatedFiles[i];
+                    minIoService.uploadChunkFile(chunkFile.getName(), metadata, chunkFile);
+                    ChunkMetadata chunkMetadata = ChunkMetadata.builder()
+                            .chunkId(chunkFile.getName())
+                            .chunkIndex(i)
+                            .videoMetadata(videoMetadata)
+                            .build();
+                    h2DatabaseService.saveChunkMetadata(chunkMetadata);
+                    chunksMetadata.add(chunkMetadata);
                 }
+                // 4. Finalize Metadata
+                videoMetadata.setTotalChunks(chunksMetadata.size());
+                videoMetadata.setChunks(chunksMetadata);
+                videoMetadata.setResolution(resolution);
+                h2DatabaseService.saveVideoMetadata(videoMetadata);
+                System.out.println("Successfully streamed, chunked, and uploaded " + chunksMetadata.size() + " files.");
             }
-
-            // 4. Finalize Metadata
-            videoMetadata.setTotalChunks(chunks.size());
-            videoMetadata.setChunks(chunks.stream().toList());
-            videoMetadata.setResolution(resolution);
-            minIoService.uploadVideoMetadata(videoMetadata);
-
-            System.out.println("Successfully streamed, chunked, and uploaded " + chunks.size() + " files.");
-
         } catch (Exception e) {
             System.err.println("Chunking or upload process failed!");
             e.printStackTrace();
@@ -111,6 +123,4 @@ public class FfmpegChunker {
             }
         }
     }
-
-
 }

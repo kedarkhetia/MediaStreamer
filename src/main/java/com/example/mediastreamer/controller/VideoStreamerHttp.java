@@ -2,6 +2,7 @@ package com.example.mediastreamer.controller;
 
 import com.example.mediastreamer.model.PreSignedDownloadUrlData;
 import com.example.mediastreamer.model.VideoMetadata;
+import com.example.mediastreamer.service.database.H2DatabaseService;
 import com.example.mediastreamer.service.minio.MinIoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -21,9 +22,12 @@ public class VideoStreamerHttp {
     @Autowired
     private MinIoService minIoService;
 
+    @Autowired
+    private H2DatabaseService h2DatabaseService;
+
     @GetMapping("/{videoId}/metadata")
     public VideoMetadata getVideoMetadata(@PathVariable("videoId") String videoId) {
-        return minIoService.downloadVideoMetadata(videoId);
+        return h2DatabaseService.getVideoMetadata(videoId);
     }
 
     @GetMapping("/getPresignedUrl/chunk/{chunkId}")

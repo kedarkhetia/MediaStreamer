@@ -21,7 +21,7 @@ import static com.example.mediastreamer.utils.Constants.VIDEO_TRANSCODER_PREFIX;
 public class RabbitMediaTranscoderConfigRegistry {
 
     private static final String EXCHANGE_NAME = "video-transcoder-exchange";
-    private static final int ttl = 60000;
+    private static final int ttl = 300000;
 
     @Bean
     public SimpleMessageListenerContainer simpleMessageListenerTranscoderContainer(
@@ -56,6 +56,7 @@ public class RabbitMediaTranscoderConfigRegistry {
     @Bean
     public Queue videoTranscoderQueue(@Value("${worker.resolution}") String resolution) {
         return QueueBuilder.durable(VIDEO_TRANSCODER_PREFIX + resolution)
+                .deadLetterExchange(VIDEO_TRANSCODER_PREFIX + resolution + "-dlq")
                 .ttl(ttl)
                 .build();
     }

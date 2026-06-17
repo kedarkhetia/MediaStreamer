@@ -22,7 +22,7 @@ public class RabbitMediaChunkerConfig {
     private static final String DL_QUEUE_NAME = "video-chunker-dlq";
     private static final String EXCHANGE_NAME = "video-chunker-exchange";
     private static final String ROUTING_KEY = "video.upload";
-    private static final int ttl = 60000;
+    private static final int ttl = 300000;
 
     @Bean
     public MessageListenerMediaChunker messageListenerMediaChunker(

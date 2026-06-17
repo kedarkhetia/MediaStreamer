@@ -1,6 +1,6 @@
 package com.example.mediastreamer.service.ffmpeg;
 
-import com.example.mediastreamer.model.ChunkMetadata;
+import com.example.mediastreamer.service.database.H2DatabaseService;
 import com.example.mediastreamer.service.minio.MinIoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -9,7 +9,6 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.TreeSet;
 
 import static com.example.mediastreamer.utils.Constants.ENCODED_CHUNK;
 import static com.example.mediastreamer.utils.Constants.FFMPEG_CHUNKS_TMP_DIR_PREFIX;
@@ -24,6 +23,9 @@ public class FfmpegTransformer {
     @Autowired
     private MinIoService minIoService;
 
+    @Autowired
+    private H2DatabaseService h2DatabaseService;
+
     public void transformVideoNatively(String chunkIdOriginal, int resolution, String resolutionCommand) {
         File tempDir = null;
 
@@ -32,7 +34,6 @@ public class FfmpegTransformer {
             String chunkPreSignedUrl = minIoService.getPreSignedChunkDownloadUrl(chunkIdOriginal).getPreSignedUrl();
 
             String chunkId = chunkIdOriginal.split(MP4_EXT)[0];
-            ChunkMetadata chunkMetadata = getChunkMetadata(chunkId);
             tempDir = Files.createTempDirectory(FFMPEG_CHUNKS_TMP_DIR_PREFIX + chunkId).toFile();
 
             // Transcode using native ffmpeg command
@@ -62,14 +63,12 @@ public class FfmpegTransformer {
                     name.startsWith(chunkId + ENCODED_CHUNK) && name.endsWith(MP4_EXT));
 
             if (generatedFiles != null) {
-                for (File chunkFile : generatedFiles) {
-                    String minioObjectName = chunkFile.getName();
-                    minIoService.uploadTranscodedChunkFile(minioObjectName, chunkFile);
-                    chunkMetadata.getTranscodedChunks().add(minioObjectName);
+                for (File transcodedChunkFile : generatedFiles) {
+                    minIoService.uploadTranscodedChunkFile(transcodedChunkFile.getName(), transcodedChunkFile);
+                    // directly using thread-safe transactional operation.
+                    h2DatabaseService.addTranscodedChunks(chunkIdOriginal, transcodedChunkFile.getName(), resolution);
                 }
             }
-
-            minIoService.uploadVideoChunksMetadata(chunkMetadata);
         } catch (Exception e) {
             System.err.println("Transcoding or upload process failed!");
             throw new RuntimeException(e);
@@ -78,18 +77,5 @@ public class FfmpegTransformer {
                 cleanUpTempDirectory(tempDir);
             }
         }
-    }
-
-    public ChunkMetadata getChunkMetadata(String chunkId) {
-        ChunkMetadata chunkMetadata = minIoService.downloadVideoChunksMetadata(chunkId);
-        if (chunkMetadata == null) {
-            System.out.println("Creating new chunk metadata with chunkId: " + chunkId);
-            chunkMetadata = ChunkMetadata
-                    .builder()
-                    .chunkId(chunkId)
-                    .transcodedChunks(new TreeSet<>())
-                    .build();
-        }
-        return chunkMetadata;
     }
 }
