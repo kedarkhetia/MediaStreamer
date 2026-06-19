@@ -68,13 +68,6 @@
 			<version>1.18.42</version>
 		</dependency>
 
-		<!-- JCodec - Java media processing library -->
-		<dependency>
-			<groupId>org.bytedeco</groupId>
-			<artifactId>javacv-platform</artifactId>
-			<version>1.5.10</version>
-		</dependency>
-
 		<!-- RabbitMQ -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

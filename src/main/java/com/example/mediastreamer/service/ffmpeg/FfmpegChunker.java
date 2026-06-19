@@ -51,6 +51,8 @@ public class FfmpegChunker {
 
     public void chunkVideoNatively(String videoId) {
         File tempDir = null;
+        Process process = null;
+
         try {
             VideoMetadata videoMetadata = h2DatabaseService.getVideoMetadata(videoId);
             tempDir = Files.createTempDirectory(FFMPEG_CHUNKS_TMP_DIR_PREFIX + videoId).toFile();
@@ -76,7 +78,7 @@ public class FfmpegChunker {
 
             ProcessBuilder processBuilder = new ProcessBuilder(command);
             processBuilder.redirectErrorStream(true);
-            Process process = processBuilder.start();
+            process = processBuilder.start();
 
             int exitCode = process.waitFor();
             if (exitCode != 0) {
@@ -116,6 +118,7 @@ public class FfmpegChunker {
             }
         } catch (Exception e) {
             System.err.println("Chunking or upload process failed!");
+            if (process != null) { process.destroyForcibly(); }
             e.printStackTrace();
         } finally {
             if (tempDir != null && tempDir.exists()) {

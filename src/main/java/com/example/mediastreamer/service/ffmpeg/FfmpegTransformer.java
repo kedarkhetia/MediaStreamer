@@ -28,6 +28,7 @@ public class FfmpegTransformer {
 
     public void transformVideoNatively(String chunkIdOriginal, int resolution, String resolutionCommand) {
         File tempDir = null;
+        Process process = null;
 
         try {
             // Get the stream URL from MinIO for FFmpeg input
@@ -52,7 +53,7 @@ public class FfmpegTransformer {
 
             ProcessBuilder processBuilder = new ProcessBuilder(command);
             processBuilder.redirectErrorStream(true);
-            Process process = processBuilder.start();
+            process = processBuilder.start();
 
             int exitCode = process.waitFor();
             if (exitCode != 0) {
@@ -71,6 +72,7 @@ public class FfmpegTransformer {
             }
         } catch (Exception e) {
             System.err.println("Transcoding or upload process failed!");
+            if (process != null) { process.destroyForcibly(); }
             throw new RuntimeException(e);
         } finally {
             if (tempDir != null && tempDir.exists()) {

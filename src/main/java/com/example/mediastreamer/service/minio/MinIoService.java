@@ -95,7 +95,7 @@ public class MinIoService {
         }
     }
 
-    public synchronized PreSignedDownloadUrlData getPreSignedVideoDownloadUrl(String videoId) {
+    public PreSignedDownloadUrlData getPreSignedVideoDownloadUrl(String videoId) {
         try {
             String url = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs
                     .builder()
@@ -115,7 +115,7 @@ public class MinIoService {
         }
     }
 
-    public synchronized PreSignedUploadUrlData getPreSignedVideoUploadUrl(String videoId, String extension) {
+    public PreSignedUploadUrlData getPreSignedVideoUploadUrl(String videoId, String extension) {
         try {
             Map<String, String> reqParams = new HashMap<>();
             reqParams.put(VIDEO_EXTENSION_KEY, extension);
